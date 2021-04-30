@@ -1,7 +1,16 @@
 require('../model/userModel');
+require('../model/registerModel');
+require('../model/adminModel');
+require('../config/passportConfig');
+
 const mongoose = require('mongoose');
+const passport = require('passport');
+const jwt = require('jsonwebtoken');
+const _ = require('lodash');
 
 var UserData=mongoose.model('user');
+var regData=mongoose.model('register');
+var adminData=mongoose.model('admin');
 
 //Insert user
 module.exports.addnew=(req,res)=>{
@@ -176,6 +185,85 @@ module.exports.deleteName=(req,res)=>{
                 message:'Error in deleting',
                 err:err.message
             })
+        })
+    })
+}
+
+//register user
+module.exports.registerData=(req,res)=>{
+    var newRegd=new regData({
+        name:req.body.uname,
+        email:req.body.uemail,
+        marks:req.body.umarks,
+        contact:req.body.ucontact
+    });
+    newRegd.save().then((docs)=>{
+        return res.status(200).json({
+            success:true,
+            message:'New user registered',
+            data:docs
+        })
+    })
+    .catch((err)=>{
+        return res.status(401).json({
+            success:false,
+            message:'Error in registering user',
+            error:err.message
+        })
+    })
+}
+
+//admin module 
+module.exports.addAdmin=(req,res)=>{
+    var adData=new adminData({
+        name:req.body.uname,
+        email:req.body.uemail,
+        contact:req.body.ucontact,
+        password:req.body.upass
+    });
+    adData.save().then((docs)=>{
+        return res.status(200).json({
+            success:true,
+            message:'New Data recorded',
+            data:docs
+        })
+    })
+    .catch((err)=>{
+        return res.status(401).json({
+            success:false,
+            message:'Error in adding data',
+            error:err.message
+        })
+    })
+}
+
+//to check authentication
+module.exports.authenticate=(req,res,next)=>{
+    passport.authenticate('local',(err,user,info)=>{
+        if(err) return res.status(404).json(err);
+        if(user) return res.status(200).json({
+            "token":jwt.sign({_id:user._id},"SecretToken",{expiresIn:'20m'}),
+            "user":user
+        });
+        if(info) return res.status(401).json(info);
+    })(req,res,next)
+}
+
+//verify Token
+module.exports.userProfile=(req,res,next)=>{
+    const id=req._id;
+    adminData.find({_id:id}).then((docs)=>{
+        return res.status(200).json({
+            success:true,
+            message:'user record found',
+            data:_.pick(docs,['name','email','contact'])
+        })
+    })
+    .catch((err)=>{
+        return res.status(401).json({
+            sucess:false,
+            message:'Error finding records',
+            error:err.message
         })
     })
 }
